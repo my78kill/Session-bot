@@ -1,4 +1,4 @@
-import time
+import os
 import threading
 from flask import Flask
 from telethon import TelegramClient, errors
@@ -13,9 +13,9 @@ from telegram.ext import (
 )
 
 # ================= CONFIG =================
-BOT_TOKEN = "PASTE_YOUR_BOT_TOKEN_HERE"
-TIMEOUT = 60  # seconds
-# ==========================================
+BOT_TOKEN = os.environ.get("BOT_TOKEN")  # Render ENV
+PORT = int(os.environ.get("PORT", 10000))
+# =========================================
 
 # Flask app (Render port bind)
 app = Flask(__name__)
@@ -34,17 +34,12 @@ ASK_2FA = 5
 USER_STATE = {}
 
 
-def is_timeout(data):
-    return time.time() - data["time"] > TIMEOUT
-
-
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat.type != "private":
         return
 
     USER_STATE[update.effective_user.id] = {
-        "state": ASK_API_ID,
-        "time": time.time()
+        "state": ASK_API_ID
     }
 
     await update.message.reply_text(
@@ -57,6 +52,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = USER_STATE.pop(update.effective_user.id, None)
+
     if data and "client" in data:
         try:
             await data["client"].disconnect()
@@ -74,12 +70,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     data = USER_STATE[user_id]
-
-    if is_timeout(data):
-        await cancel(update, context)
-        return
-
-    data["time"] = time.time()
     state = data["state"]
 
     # API ID
@@ -117,7 +107,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         data["otp"] = text.replace(" ", "")
         await try_signin(update, data)
 
-    # 2FA
+    # 2FA PASSWORD
     elif state == ASK_2FA:
         try:
             await update.message.delete()
@@ -204,4 +194,4 @@ def run_bot():
 
 if __name__ == "__main__":
     threading.Thread(target=run_bot).start()
-    app.run(host="0.0.0.0", port=10000)
+    app.run(host="0.0.0.0", port=PORT)
