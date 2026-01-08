@@ -193,5 +193,8 @@ def run_bot():
 
 
 if __name__ == "__main__":
-    threading.Thread(target=run_bot).start()
-    app.run(host="0.0.0.0", port=PORT)
+    # Direct run bot first in main thread
+    run_bot()  # now polling runs in main thread, no thread freeze
+
+    # Flask optional for Render port (can comment out if not needed)
+    # app.run(host="0.0.0.0", port=PORT)
